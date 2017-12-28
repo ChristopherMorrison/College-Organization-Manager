@@ -324,9 +324,9 @@ def process_signins():
             print('total atten ' + str(total_attendance))
             print('next atten  ' + str(int(total_attendance)+1))
             
-            ws_roster.update_cell(entry_index, semester_attendance_index, previous_attendance + 1 )
-            ws_roster.update_cell(entry_index, total_attendance_index   , str(int(total_attendance)+1) )
-            ws_roster.update_cell(entry_index, last_meeting_date_index  , entry[signins_timestamp])
+            #ws_roster.update_cell(entry_index, semester_attendance_index, previous_attendance + 1 )
+            #ws_roster.update_cell(entry_index, total_attendance_index   , str(int(total_attendance)+1) )
+            #ws_roster.update_cell(entry_index, last_meeting_date_index  , entry[signins_timestamp])
     
     # update the last processed sign-in time
     last_sign_in_processed_timestamp = str2dt(recent_signins[-1][signins_timestamp])
@@ -424,31 +424,38 @@ def process_roster():
     
     printWarning('Now undergoing roster writeback, this may take a long time')
     
-    for row in range(min([len(ws_roster_values_original), len(ws_roster_values_unique)])):
-        #printInfo('Updating row ' + str(row + 1))
-        # if the cells are not equal, writeback to the roster, elif will not work here becuase of the indexing
-        if ws_roster_values_original[row] != ws_roster_values_unique[row]:
-            #update cell for cell in range if unique!=original
-            for cell in range(len(ws_roster_values_unique[row])):
-                printInfo('comparing cell ' + str(cell+1) + ' of ' + str(len(ws_roster_values_unique[row])))
-                if ws_roster_values_unique[row][cell] != ws_roster_values_original[row][cell]:
-                    printInfo('Inserting ' + ws_roster_values_unique[row][cell])
-                    ws_roster.update_cell(row + 1, cell + 1, ws_roster_values_unique[row][cell])
-            
-            #[ws_roster.update_cell(row + 1, cell + 1, ws_roster_values_unique[row][cell]) for cell in range(len(ws_roster_values_unique[row])) if ws_roster_values_unique[row][cell] != ws_roster_values_original[row][cell]]
+    # Select Cells covered by the original data
+    start_range = ws_roster.get_addr_int(1,1)
+    end_range = ws_roster.get_addr_int(len(ws_roster_values_original), len(ws_roster_values_original[0]))
+    active_cells = ws_roster.range(start_range + ':' + end_range)
+    active_cells = [active_cells[x:x+len(ws_roster_header)] for x in range(0, len(active_cells), len(ws_roster_header))]
     
-    # if we are out of unique values, clear the remaining rows
-    if len(ws_roster_values_original) > len(ws_roster_values_unique):
-        offset = len(ws_roster_values_unique)
-        for row in range(len(ws_roster_values_original) - offset):
-            #printInfo('Clearing row ' + str(row + offset))
-            [ws_roster.update_cell(row + offset + 1 , cell + 1, '') for cell in 
-            range(len(ws_roster_header))]
+    # Update values from unique data
+    for row in range(len(ws_roster_values_unique)):
+        for col in range(len(ws_roster_header)):
+            active_cells[row][col].value = ws_roster_values_unique[row][col]
+    
+    
+    # Clear hanging original data values
+    offset = len(ws_roster_values_unique)
+    for row in range(len(ws_roster_values_original) - offset):
+        for col in range(len(ws_roster_header)):
+            active_cells[row + offset][col].value = ''
+    
+    # flatten active_cells list
+    temp = []
+    for entry in active_cells:
+        temp+=entry
+    active_cells = temp
+    
+    # .update_cells batch call
+    ws_roster.update_cells(active_cells)
     
     # update last_roster_aggregation_time
     global last_roster_aggregation_time
     last_roster_aggregation_time = time.asctime()
     
+    printSuccess('Roster aggreagtion complete, there are ' + str(len(ws_roster_values_unique)) + ' entries.')
     return
 def generate_subrosters():
     printInfo('Generating subrosters')
@@ -538,7 +545,8 @@ def main():
         
         # look for sign ins 
         if current_cycle % int(check_signin_period) == 0:
-            process_signins()
+            pass
+            #process_signins()
         
         # Process all the roster data
         if current_cycle % int(roster_aggregation_period) == 0:
@@ -546,7 +554,8 @@ def main():
             
         # Generate subrosters
         if current_cycle % int(generate_subroster_period) == 0:
-            generate_subrosters()
+            pass
+            #TODO: generate_subrosters()
             
         # if today is a semester switch day and the semester has not been switched yet, switch it
         today = datetime.datetime.now()
@@ -559,7 +568,7 @@ def main():
                 (season != 'summmer' and summer_semester_start_date < today and today < fall_semester_start_date) or
                 (season != 'fall' and fall_semester_start_date < today)
             ):
-            update_semester()
+            pass #TODO: update_semester()
         
         
         printInfo('Going to sleep for ' + post_interval_sleep_time + ' minute(s)')
