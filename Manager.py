@@ -239,7 +239,7 @@ def process_signins():
     global last_sign_in_processing_time
     last_sign_in_processing_time = time.asctime()
     
-    # load sign in sheet into memory
+    # load sign in sheet
     signin_sheet = open_worksheet('Sign ins')
     signins = signin_sheet.get_all_values()
     signins_timestamp = 0
@@ -274,59 +274,99 @@ def process_signins():
         if entry[1][0] != 'M':
             entry[1] = 'M' + entry[1]
     
-    # update Roster with sign in data
+    # Load in main roster
     ws_roster = open_worksheet('Full Roster')
+    ws_roster_values_original = ws_roster.get_all_values()
+    ws_roster_values_updated = ws_roster.get_all_values()
     ws_roster_header = ws_roster.get_all_values()[0]
     
-    # THESE ARE 1 INDEXED BECAUSE OF THE API
-    id_index = 1 + ws_roster_header.index('ID')
-    name_index = 1 + ws_roster_header.index('Full Name')
-    m_number_index = 1 + ws_roster_header.index('ID Num')
-    join_date_index = 1 + ws_roster_header.index('Join Date')
-    semester_attendance_index = 1 + ws_roster_header.index('Attendance This Semester')
-    last_meeting_date_index = 1 + ws_roster_header.index('Last Meeting Date')
-    total_attendance_index = 1 + ws_roster_header.index('Total Attendance')
+    # Find index values of used fields 
+    id_index = ws_roster_header.index('ID')
+    name_index = ws_roster_header.index('Full Name')
+    m_number_index = ws_roster_header.index('ID Num')
+    join_date_index = ws_roster_header.index('Join Date')
+    semester_attendance_index = ws_roster_header.index('Attendance This Semester')
+    last_meeting_date_index = ws_roster_header.index('Last Meeting Date')
+    total_attendance_index = ws_roster_header.index('Total Attendance')
     roster_size = len(ws_roster.get_all_values())
     
     # for each signin entry
     for entry in recent_signins:
         try:
-            print('Looking for ' + entry[signins_6_2])
-            # look for existing entry
-            entry_index = ws_roster.find(entry[signins_6_2]).row
+            print('Looking for ' + str(entry[signins_name]))
+            # look for existing entry (account for index diff)
+            # TODO look for miss by preffered email in a series of try catch
+            try: # by 6-2
+                entry_index = ws_roster.find(entry[signins_6_2]).row - 1 
+            except:
+                try: # by M#
+                    entry_index = ws_roster.find(entry[signins_m_num]).row - 1 
+                except:
+                    try: # by university email
+                        entry_index = ws_roster.find(entry[signins_6_2] + '@mail.uc.edu').row - 1 
+                    except:
+                        raise
             
             print('Found')
             # add M num if we don't have it
-            if ws_roster.cell(entry_index, m_number_index).value == '':
-                ws_roster.update_cell(entry_index, m_number_index, entry[1])
-                
+            if ws_roster_values_updated[entry_index][m_number_index] == '':
+                ws_roster_values_updated[entry_index][m_number_index] == entry[signins_m_num]
+            
             # add name if we don't have it
-            if ws_roster.cell(entry_index, name_index).value == '':
-                ws_roster.update_cell(entry_index, name_index, entry[3])
+            if ws_roster_values_updated[entry_index][name_index] == '':
+                ws_roster_values_updated[entry_index][name_index] == entry[signins_name]
+                
         except:
             print('not found')
             # new sign ins -> create new entry
+            # Don't worry about alphabetic position for now, that is what process_roster() is for
+            new_entry = ['' for i in range(len(ws_roster_header))]
+            new_entry[id_index] = entry[signins_6_2]
+            new_entry[m_number_index] = entry[signins_m_num]
+            new_entry[name_index] = entry[signins_name]
+            new_entry[join_date_index] = entry[signins_timestamp]
+            ws_roster_values_updated.append(new_entry)
+            entry_index = len(ws_roster_values_updated) - 1
             
-            # using .insert_row is NOT the way to do this [ O(N!) vs O(N) ]
-            roster_size = roster_size + 1
-            entry_index = roster_size
-            ws_roster.update_cell(entry_index, id_index, entry[signins_6_2])
-            ws_roster.update_cell(entry_index, m_number_index, entry[signins_m_num])
-            ws_roster.update_cell(entry_index, name_index, entry[signins_name])
-            ws_roster.update_cell(entry_index, join_date_index, entry[signins_timestamp])
         finally:
             # old and new sign ins -> update number of meetings attended and last meeting date
-            previous_attendance = int(str(0) + ws_roster.cell(entry_index, semester_attendance_index).value)
-            total_attendance = int(str(0) + ws_roster.cell(entry_index, total_attendance_index).value)
+            previous_attendance = int(str(0) + str(ws_roster_values_updated[entry_index][semester_attendance_index]))
+            total_attendance = int(str(0) + str(ws_roster_values_updated[entry_index][total_attendance_index]))
             
-            print(entry[signins_name])
-            print('Prev atten  ' + str(previous_attendance))
-            print('total atten ' + str(total_attendance))
-            print('next atten  ' + str(int(total_attendance)+1))
+            print(previous_attendance)
+            print(total_attendance)
             
-            #ws_roster.update_cell(entry_index, semester_attendance_index, previous_attendance + 1 )
-            #ws_roster.update_cell(entry_index, total_attendance_index   , str(int(total_attendance)+1) )
-            #ws_roster.update_cell(entry_index, last_meeting_date_index  , entry[signins_timestamp])
+            ws_roster_values_updated[entry_index][semester_attendance_index] = previous_attendance + 1
+            ws_roster_values_updated[entry_index][total_attendance_index] = total_attendance + 1
+            ws_roster_values_updated[entry_index][last_meeting_date_index] = entry[signins_timestamp]
+    
+    # writeback to the roster
+    
+    printWarning('Now undergoing roster writeback, this may take a long time')
+    
+    # Select Cells covered by the original data
+    start_range = ws_roster.get_addr_int(1,1)
+    end_range = ws_roster.get_addr_int(len(ws_roster_values_updated), len(ws_roster_values_updated[0]))
+    active_cells = ws_roster.range(start_range + ':' + end_range)
+    
+    # Break active cells from flat list to list list
+    active_cells = [active_cells[x:x+len(ws_roster_header)] for x in range(0, len(active_cells), len(ws_roster_header))]
+    
+    # Update values from updated data
+    for row in range(len(ws_roster_values_updated)):
+        for col in range(len(ws_roster_header)):
+            active_cells[row][col].value = ws_roster_values_updated[row][col]
+        
+    # flatten active_cells list
+    temp = []
+    for entry in active_cells:
+        temp+=entry
+    active_cells = temp
+    
+    # .update_cells batch call
+    ws_roster.update_cells(active_cells)
+    
+    printSuccess('Signins successfully proccesed.')
     
     # update the last processed sign-in time
     last_sign_in_processed_timestamp = str2dt(recent_signins[-1][signins_timestamp])
@@ -489,25 +529,47 @@ def update_semester():
     # writeback roster    
     ws_roster_values_updated = [ws_roster_header] + ws_roster_values_updated    
     
+    printWarning('Now undergoing roster writeback, this may take a long time')
+    
+    # Select Cells covered by the original data
+    start_range = ws_roster.get_addr_int(1,1)
+    end_range = ws_roster.get_addr_int(len(ws_roster_values_updated), len(ws_roster_values_updated[0]))
+    active_cells = ws_roster.range(start_range + ':' + end_range)
+    
+    # Break active cells from flat list to list list
+    active_cells = [active_cells[x:x+len(ws_roster_header)] for x in range(0, len(active_cells), len(ws_roster_header))]
+    
+    # Update values from updated data
     for row in range(len(ws_roster_values_updated)):
-        for col in range(len(ws_roster_values_updated[row])):
-            if ws_roster_values_original[row][col] != ws_roster_values_updated[row][col]:
-                ws_roster.update_cell(row + 1, col + 1, ws_roster_values_updated[row][col])
+        for col in range(len(ws_roster_header)):
+            active_cells[row][col].value = ws_roster_values_updated[row][col]
         
+    # flatten active_cells list
+    temp = []
+    for entry in active_cells:
+        temp+=entry
+    active_cells = temp
+    
+    # .update_cells batch call
+    #ws_roster.update_cells(active_cells)
+    
+    printSuccess('Signins successfully proccesed.')
+    '''====================================='''
+    
     # update current semester
     global current_semester
     global spring_semester_start_date
     global summer_semester_start_date
     global fall_semester_start_date
     
-    season = current_semester.split(' ')[0].lower()
     today = datetime.datetime.now()
-    if spring_semester_start_date < today and today < summer_semester_start_date:
+    if spring_semester_start_date < today:#TODO and today < summer_semester_start_date:
         current_semester = 'spring ' + str(today.year)
-    if summer_semester_start_date < today and today < fall_semester_start_date:
+    elif summer_semester_start_date < today and today < fall_semester_start_date:
         current_semester = 'summer ' + str(today.year)
-    if fall_semester_start_date < today:
+    elif fall_semester_start_date < today:
         current_semester = 'fall ' + str(today.year)
+    printMessage('Current semester should be ' + current_semester)
     
     return
 
@@ -543,15 +605,14 @@ def main():
         # read/update the control panel to decide what to do next
         sync_control_panel()
         
-        # look for sign ins 
-        if current_cycle % int(check_signin_period) == 0:
-            pass
-            #process_signins()
-        
         # Process all the roster data
         if current_cycle % int(roster_aggregation_period) == 0:
             process_roster()
-            
+        
+        # look for sign ins 
+        if current_cycle % int(check_signin_period) == 0:
+            process_signins()
+        
         # Generate subrosters
         if current_cycle % int(generate_subroster_period) == 0:
             pass
@@ -568,7 +629,7 @@ def main():
                 (season != 'summmer' and summer_semester_start_date < today and today < fall_semester_start_date) or
                 (season != 'fall' and fall_semester_start_date < today)
             ):
-            pass #TODO: update_semester()
+            update_semester()
         
         
         printInfo('Going to sleep for ' + post_interval_sleep_time + ' minute(s)')
@@ -588,6 +649,28 @@ if __name__ == "__main__":
         raise
  
 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
  
  
  
