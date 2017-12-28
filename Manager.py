@@ -9,30 +9,29 @@ dbo = None
 
 # API details
 scope = ["https://spreadsheets.google.com/feeds"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("calico_client_secret.json",scope)
-
+creds = ServiceAccountCredentials.from_json_keyfile_name("client_secret.json",scope)
 
 # Global object variables
 client      = None
 spreadsheet = None
 
-
 # State variables
 client_authorized  = False
 spreadsheet_opened = False
 
-
 # Control Panel Variables
-last_roster_aggregation_time     = 'Not run yet'
-last_sign_in_processing_time     = 'Not run yet'
+last_roster_aggregation_time     = '-'
+last_sign_in_processing_time     = '-'
 last_sign_in_processed_timestamp = None
-last_subroster_generation_time   = 'Not run yet'
+last_subroster_generation_time   = '-'
 agent_start_time = None
 
 post_interval_sleep_time   = 1 
 roster_aggregation_period  = 10
 check_signin_period        = 10
 generate_subroster_period  = 10
+
+current_semester = None
 fall_semester_start_date   = None
 spring_semester_start_date = None
 summer_semester_start_date = None
@@ -136,40 +135,52 @@ def sync_control_panel():
     # UPDATE TIMES
     
     # update check-in time
-    active_cell = control_panel.find('Last Agent Check-in')
-    control_panel.update_cell(active_cell.row, active_cell.col + 1, time.asctime())
+    active_cell = Control_Value(control_panel, 'Last Agent Check-in')
+    control_panel.update_cell(active_cell.row, active_cell.col, time.asctime())
     
     # Last Roster Aggregation
-    active_cell = control_panel.find('Last Roster Aggregation')
+    active_cell = Control_Value(control_panel, 'Last Roster Aggregation')
     if not active_cell.value == last_roster_aggregation_time:
-        control_panel.update_cell(active_cell.row, active_cell.col + 1, last_roster_aggregation_time)
+        control_panel.update_cell(active_cell.row, active_cell.col, last_roster_aggregation_time)
     
     # Last Sign-in Processing
-    active_cell = control_panel.find('Last Sign-in Processing')
+    active_cell = Control_Value(control_panel, 'Last Sign-in Processing')
     if not active_cell.value == last_sign_in_processing_time:
-        control_panel.update_cell(active_cell.row, active_cell.col + 1, last_sign_in_processing_time)
+        control_panel.update_cell(active_cell.row, active_cell.col, last_sign_in_processing_time)
     
     # Last Processed sign in (last_sign_in_processed_timestamp)
     global last_sign_in_processed_timestamp
-    active_cell = control_panel.find('Last Processed Sign in TS')
-    active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
+    active_cell = Control_Value(control_panel, 'Last Processed Sign in TS')
+    if active_cell.value == '-':
+        control_panel.update_cell(active_cell.row, active_cell.col, '01/01/0001 00:00:00')
+        active_cell = Control_Value(control_panel, 'Last Processed Sign in TS')
     if last_sign_in_processed_timestamp != None and str2dt(active_cell.value) < last_sign_in_processed_timestamp:
-        control_panel.update_cell(active_cell.row, active_cell.col, last_sign_in_processed_timestamp)
+            control_panel.update_cell(active_cell.row, active_cell.col, last_sign_in_processed_timestamp)
     else:
         last_sign_in_processed_timestamp = active_cell.value
         last_sign_in_processed_timestamp = str2dt(last_sign_in_processed_timestamp)
     
     # Last SubRoster Generation
-    active_cell = control_panel.find('Last SubRoster Generation')
+    active_cell = Control_Value(control_panel, 'Last SubRoster Generation')
     if not active_cell.value == last_subroster_generation_time:
-        control_panel.update_cell(active_cell.row, active_cell.col + 1, last_subroster_generation_time)
+        control_panel.update_cell(active_cell.row, active_cell.col, last_subroster_generation_time)
     
     
     # update startup time
-    active_cell = control_panel.find('Last Agent Startup Time')
+    active_cell = Control_Value(control_panel, 'Last Agent Startup Time')
     if not active_cell.value == agent_start_time:
-        control_panel.update_cell(active_cell.row, active_cell.col + 1, agent_start_time)
+        control_panel.update_cell(active_cell.row, active_cell.col, agent_start_time)
 
+    # Current Semester
+    global current_semester
+    active_cell = Control_Value(control_panel, 'Current Semester')
+    if active_cell.value == '-':
+        control_panel.update_cell(active_cell.row, active_cell.col, 'spring 0001')
+        active_cell = Control_Value(control_panel, 'Current Semester')
+    if current_semester == None:
+        current_semester = active_cell.value
+    if current_semester != active_cell.value:
+        control_panel.update_cell(active_cell.row, active_cell.col, current_semester)
     
     # AGENT CONFIG
     
@@ -179,28 +190,24 @@ def sync_control_panel():
     
     # Roster aggregation period
     global roster_aggregation_period
-    active_cell = control_panel.find('Roster Aggregation Period')
-    active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
+    active_cell = Control_Value(control_panel, 'Roster Aggregation Period')
     if not active_cell.value == roster_aggregation_period:
         roster_aggregation_period = active_cell.value
     
     # Check Sign-n period
     global check_signin_period
-    active_cell = control_panel.find('Check Sign-in Period')
-    active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
+    active_cell = Control_Value(control_panel, 'Check Sign-in Period')
     if not active_cell.value == check_signin_period:
         check_signin_period = active_cell.value
     
     # Generate subroster period
     global generate_subroster_period
-    active_cell = control_panel.find('Generate Subroster Period')
-    active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
+    active_cell = Control_Value(control_panel, 'Generate Subroster Period')
     if not active_cell.value == generate_subroster_period:
         generate_subroster_period = active_cell.value
     
     # Shut down command
-    active_cell = control_panel.find('Shutdown next interval?')
-    active_cell = control_panel.cell(active_cell.row, active_cell.col +1)
+    active_cell = Control_Value(control_panel, 'Shutdown next interval?')
     if active_cell.value.lower() == 'yes':
         printWarning('Shutdown command has been recieved from the control panel.')
         exit()
@@ -208,24 +215,23 @@ def sync_control_panel():
     # Fall Semester start date (if not already read)
     global fall_semester_start_date
     if fall_semester_start_date is None:
-        active_cell = control_panel.find('Fall Semester Start Date')
-        active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
-        fall_semester_start_date = active_cell.value
+        active_cell = Control_Value(control_panel, 'Fall Semester Start (MM/DD)')
+        fall_semester_start_date = datetime.datetime.strptime(active_cell.value, '%m/%d')
+        fall_semester_start_date = fall_semester_start_date.replace(year = datetime.datetime.now().year)
         
     # Spring semester start date (if not already read)
     global spring_semester_start_date
     if spring_semester_start_date is None:
-        active_cell = control_panel.find('Spring Semester Start Date')
-        active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
-        spring_semester_start_date = active_cell.value
+        active_cell = Control_Value(control_panel, 'Spring Semester Start (MM/DD)')
+        spring_semester_start_date = datetime.datetime.strptime(active_cell.value, '%m/%d')
+        spring_semester_start_date = spring_semester_start_date.replace(year = datetime.datetime.now().year)
     
     # Summer semester start date (if not already read)
     global summer_semester_start_date
     if summer_semester_start_date is None:
-        active_cell = control_panel.find('Summer Semester Start Date')
-        active_cell = control_panel.cell(active_cell.row, active_cell.col + 1)
-        summer_semester_start_date = active_cell.value
-
+        active_cell = Control_Value(control_panel, 'Summer Semester Start (MM/DD)')
+        summer_semester_start_date = datetime.datetime.strptime(active_cell.value, '%m/%d')
+        summer_semester_start_date = summer_semester_start_date.replace(year = datetime.datetime.now().year)
 
 # Roster processing
 def process_signins():
@@ -248,7 +254,7 @@ def process_signins():
     recent_signins = []
     global last_sign_in_processed_timestamp
     for entry in signins:
-        if entry[signins_timestamp] != '' and str2dt(entry[signin_timestamp]) > last_sign_in_processed_timestamp:
+        if entry[signins_timestamp] != '' and str2dt(entry[signins_timestamp]) > last_sign_in_processed_timestamp:
             recent_signins += [entry]
     
     # if there are no recent sign ins, stop
@@ -283,17 +289,25 @@ def process_signins():
     roster_size = len(ws_roster.get_all_values())
     
     # for each signin entry
-    for signin in recent_signins:
+    for entry in recent_signins:
         try:
+            print('Looking for ' + entry[signins_6_2])
             # look for existing entry
             entry_index = ws_roster.find(entry[signins_6_2]).row
+            
+            print('Found')
+            # add M num if we don't have it
             if ws_roster.cell(entry_index, m_number_index).value == '':
                 ws_roster.update_cell(entry_index, m_number_index, entry[1])
+                
+            # add name if we don't have it
             if ws_roster.cell(entry_index, name_index).value == '':
                 ws_roster.update_cell(entry_index, name_index, entry[3])
         except:
+            print('not found')
             # new sign ins -> create new entry
-            # using .insert_row is NOT the way to do this
+            
+            # using .insert_row is NOT the way to do this [ O(N!) vs O(N) ]
             roster_size = roster_size + 1
             entry_index = roster_size
             ws_roster.update_cell(entry_index, id_index, entry[signins_6_2])
@@ -305,10 +319,14 @@ def process_signins():
             previous_attendance = int(str(0) + ws_roster.cell(entry_index, semester_attendance_index).value)
             total_attendance = int(str(0) + ws_roster.cell(entry_index, total_attendance_index).value)
             
-            ws_roster.update_cell(entry_index, semester_attendance_index, previous_attendance + 1 )
-            ws_roster.update_cell(entry_index, total_attendance_index, total_attendance + 1 )
-            ws_roster.update_cell(entry_index, last_meeting_date_index, entry[singins_timestamp])
+            print(entry[signins_name])
+            print('Prev atten  ' + str(previous_attendance))
+            print('total atten ' + str(total_attendance))
+            print('next atten  ' + str(int(total_attendance)+1))
             
+            ws_roster.update_cell(entry_index, semester_attendance_index, previous_attendance + 1 )
+            ws_roster.update_cell(entry_index, total_attendance_index   , str(int(total_attendance)+1) )
+            ws_roster.update_cell(entry_index, last_meeting_date_index  , entry[signins_timestamp])
     
     # update the last processed sign-in time
     last_sign_in_processed_timestamp = str2dt(recent_signins[-1][signins_timestamp])
@@ -407,7 +425,7 @@ def process_roster():
     printWarning('Now undergoing roster writeback, this may take a long time')
     
     for row in range(min([len(ws_roster_values_original), len(ws_roster_values_unique)])):
-        printInfo('Updating row ' + str(row + 1))
+        #printInfo('Updating row ' + str(row + 1))
         # if the cells are not equal, writeback to the roster, elif will not work here becuase of the indexing
         if ws_roster_values_original[row] != ws_roster_values_unique[row]:
             #update cell for cell in range if unique!=original
@@ -423,7 +441,7 @@ def process_roster():
     if len(ws_roster_values_original) > len(ws_roster_values_unique):
         offset = len(ws_roster_values_unique)
         for row in range(len(ws_roster_values_original) - offset):
-            printInfo('Clearing row ' + str(row + offset))
+            #printInfo('Clearing row ' + str(row + offset))
             [ws_roster.update_cell(row + offset + 1 , cell + 1, '') for cell in 
             range(len(ws_roster_header))]
     
@@ -441,8 +459,52 @@ def generate_subrosters():
     # mark as inactive in roster
     return
 def update_semester():
+    printInfo('The semester is being updated.')
+    
+    # load roster
+    ws_roster = open_worksheet('Full Roster')
+    ws_roster_values_original = ws_roster.get_all_values()
+    ws_roster_values_updated = ws_roster.get_all_values()
+    ws_roster_header = ws_roster_values_original[0]
+    ws_roster_values_updated = ws_roster_values_updated[1:]
+    
+    
+    this_semester_index = ws_roster_header.index('Attendance This Semester')
+    last_semester_index = ws_roster_header.index('Attendance Last Semester')
+    
+    for entry in ws_roster_values_updated:
+        # move over current semester sign in counts to last semester
+        entry[last_semester_index] = entry[this_semester_index]
+        
+        # reset current semester sign in
+        entry[this_semester_index] = '0'
+    
+    # writeback roster    
+    ws_roster_values_updated = [ws_roster_header] + ws_roster_values_updated    
+    
+    for row in range(len(ws_roster_values_updated)):
+        for col in range(len(ws_roster_values_updated[row])):
+            if ws_roster_values_original[row][col] != ws_roster_values_updated[row][col]:
+                ws_roster.update_cell(row + 1, col + 1, ws_roster_values_updated[row][col])
+        
+    # update current semester
+    global current_semester
+    global spring_semester_start_date
+    global summer_semester_start_date
+    global fall_semester_start_date
+    
+    season = current_semester.split(' ')[0].lower()
+    today = datetime.datetime.now()
+    if spring_semester_start_date < today and today < summer_semester_start_date:
+        current_semester = 'spring ' + str(today.year)
+    if summer_semester_start_date < today and today < fall_semester_start_date:
+        current_semester = 'summer ' + str(today.year)
+    if fall_semester_start_date < today:
+        current_semester = 'fall ' + str(today.year)
+    
     return
-# API instance
+
+# Main Loop
 def main():
     # pull in global variables
     global check_signin_period
@@ -452,6 +514,10 @@ def main():
     global agent_start_time
     global client
     global spreadsheet
+    global current_semester
+    global spring_semester_start_date
+    global summer_semester_start_date
+    global fall_semester_start_date
     
     # Take note of the starting time
     agent_start_time = time.asctime()
@@ -483,9 +549,17 @@ def main():
             generate_subrosters()
             
         # if today is a semester switch day and the semester has not been switched yet, switch it
-        # if is fall and in spring range
-        # if is spring and in summer range
-        # if is summer and in fall range
+        today = datetime.datetime.now()
+        season = current_semester.split(' ')[0].lower()
+        
+        # if not season x and between season x dates
+        if (
+                #(season != 'spring'   and spring_semester_start_date < today and today < summer_semester_start_date) or
+                (season != 'spring'   and spring_semester_start_date < today) or
+                (season != 'summmer' and summer_semester_start_date < today and today < fall_semester_start_date) or
+                (season != 'fall' and fall_semester_start_date < today)
+            ):
+            update_semester()
         
         
         printInfo('Going to sleep for ' + post_interval_sleep_time + ' minute(s)')
