@@ -1,0 +1,13 @@
+# Examples
+
+## Archiving/backing up a roster
+...
+
+## Importing old rosters
+...
+
+## Connecting a Google form to use as the sign in sheet
+...
+
+## Adding or modifying roster processing filters
+...

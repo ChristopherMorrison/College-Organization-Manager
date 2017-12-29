@@ -1,5 +1,5 @@
 # College-Organization-Manager
-A semi-autonomous Python3 and Google Sheets based college organization management tool designed for easy deployment and use. Meant for groups of 10-500 due to current speed limitations of the API.
+A semi-autonomous Python3 and Google Sheets based college organization management tool designed for easy deployment and use. Meant for groups of up to 500 due to current speed limitations of the API.
 
 Features:
 
@@ -9,6 +9,8 @@ Features:
 * Ability to copy and paste in multiple rosters and condense them down to one large roster for carrying over large amounts of previously gathered data
 * Control panel located within the spreadsheet document for easy settings updates during runtime
 * Automatic processing of semester change
+* Easy to modify roster filters and settings
+* Detection of duplicate member entries
 
 ## Requirements
 1. A Google account (free)

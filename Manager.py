@@ -3,6 +3,14 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import time
 import datetime
+import os
+
+# Very important variables
+settings_filename = 'settings.cfg'
+Google_Sheet_Name = 'Python Agent Master Sheet'
+Google_Sheet_key = ''
+Google_Sheet_URL = ''
+Administrator_Email = ''
 
 # debug variables
 dbo = None
@@ -111,7 +119,7 @@ def open_worksheet(worksheet_name):
     printInfo('Attempting to open worksheet ' + worksheet_name)
     try:
         opened_sheet = spreadsheet.worksheet(worksheet_name)
-        printSuccess('Worksheet ' + worksheet_name + ' opened')
+        printSuccess('Worksheet "' + worksheet_name + '" opened')
         return opened_sheet
     except:
         printError('Could not open worksheet ' + worksheet_name)
@@ -122,7 +130,67 @@ def debug(object_to_debug):
     global dbo
     dbo = object_to_debug
     exit()
+def writeback(worksheet, values):
+    '''
+        Please note that values is the list of list of values and not the cell values
+        If you had the cell values you would just use worksheet.update_cells(cell_list)
+    '''
+    # Print message
+    printWarning('Now undergoing worksheet writeback, this may take a long time')
+    
+    # get cell range from worksheet
+    all_values = worksheet.get_all_values()
+    start_range = worksheet.get_addr_int(1, 1)
+    end_range = worksheet.get_addr_int(len(all_values), len(all_values[0]))
+    active_cells = worksheet.range(start_range + ':' + end_range)
+    
+    # Add depth to active_cells to make it easier to traverse
+    active_cells = [active_cells[x:x+len(values[0])] for x in range(0, len(active_cells), len(values[0]))]
+    
+    # Update cell values
+    for row in range(len(values)):
+        for col in range(len(values[0])):
+            active_cells[row][col].value = values[row][col]
+    
+    # clear remaining cells
+    if len(active_cells) > len(values):
+        offset = len(values)
+        for row in range(len(active_cells) - offset):
+            for col in range(values[0]):
+                active_cells[row + offset][col].value = ''
+    
+    # flatten active_cells list
+    temp = []
+    for entry in active_cells:
+        temp+=entry
+    active_cells = temp
+    
+    # writeback to the worksheet
+    worksheet.update_cells(active_cells)
+    printSuccess('Writeback complete')
+    
+    return
 
+# Setup functions
+def First_Time_Setup(settings_filename = 'settings.cfg'):
+    #TODO
+    # Make sure settings.cfg exists or (generate a new one and exit)
+    if not os.path.isfile(settings_filename):
+        Generate_Settings_File(settings_filename)
+    # Load in values from settings.cfg
+    # make sure we have an admin email
+    # Create new spreadsheet
+    # Add worksheets and content
+    # Add the Administrator_Email as a collaborator
+    # Update settings.cfg
+    # run first time updates on worksheet
+    return
+def Generate_Settings_File(filename = 'settings.cfg'):
+    #TODO
+    return
+def Load_Settings_File(filename = 'settings.cfg'):
+    #TODO
+    return
 
 # control panel functions
 def Control_Value(cp_worksheet, str_setting):
@@ -259,6 +327,7 @@ def process_signins():
     
     # if there are no recent sign ins, stop
     if len(recent_signins) == 0:
+        printSuccess('There are no new signins to process.')
         return
     
     # filter user input
@@ -295,7 +364,6 @@ def process_signins():
         try:
             print('Looking for ' + str(entry[signins_name]))
             # look for existing entry (account for index diff)
-            # TODO look for miss by preffered email in a series of try catch
             try: # by 6-2
                 entry_index = ws_roster.find(entry[signins_6_2]).row - 1 
             except:
@@ -340,31 +408,8 @@ def process_signins():
             ws_roster_values_updated[entry_index][total_attendance_index] = total_attendance + 1
             ws_roster_values_updated[entry_index][last_meeting_date_index] = entry[signins_timestamp]
     
-    # writeback to the roster
-    
-    printWarning('Now undergoing roster writeback, this may take a long time')
-    
-    # Select Cells covered by the original data
-    start_range = ws_roster.get_addr_int(1,1)
-    end_range = ws_roster.get_addr_int(len(ws_roster_values_updated), len(ws_roster_values_updated[0]))
-    active_cells = ws_roster.range(start_range + ':' + end_range)
-    
-    # Break active cells from flat list to list list
-    active_cells = [active_cells[x:x+len(ws_roster_header)] for x in range(0, len(active_cells), len(ws_roster_header))]
-    
-    # Update values from updated data
-    for row in range(len(ws_roster_values_updated)):
-        for col in range(len(ws_roster_header)):
-            active_cells[row][col].value = ws_roster_values_updated[row][col]
-        
-    # flatten active_cells list
-    temp = []
-    for entry in active_cells:
-        temp+=entry
-    active_cells = temp
-    
-    # .update_cells batch call
-    ws_roster.update_cells(active_cells)
+    # Update google sheet
+    writeback(ws_roster, ws_roster_values_updated)
     
     printSuccess('Signins successfully proccesed.')
     
@@ -456,40 +501,14 @@ def process_roster():
     ws_roster_values_unique.sort()
     ws_roster_values_unique = [entry.split('\t') for entry in ws_roster_values_unique]
     
+    
     # Writeback to the gsheet roster (only cells that have changed)
     ws_roster_values_unique = [ws_roster_header] + ws_roster_values_unique
+    if not ws_roster_values_unique == ws_roster_values_original:
+        writeback(ws_roster, ws_roster_values_unique)
+    else:
+        printSuccess('There is no change in the roster')
     
-    # The row and cell indexing will be tricky here because of the combination of 0 and 1 indexing
-    # for the maximum number of rows we have
-    
-    printWarning('Now undergoing roster writeback, this may take a long time')
-    
-    # Select Cells covered by the original data
-    start_range = ws_roster.get_addr_int(1,1)
-    end_range = ws_roster.get_addr_int(len(ws_roster_values_original), len(ws_roster_values_original[0]))
-    active_cells = ws_roster.range(start_range + ':' + end_range)
-    active_cells = [active_cells[x:x+len(ws_roster_header)] for x in range(0, len(active_cells), len(ws_roster_header))]
-    
-    # Update values from unique data
-    for row in range(len(ws_roster_values_unique)):
-        for col in range(len(ws_roster_header)):
-            active_cells[row][col].value = ws_roster_values_unique[row][col]
-    
-    
-    # Clear hanging original data values
-    offset = len(ws_roster_values_unique)
-    for row in range(len(ws_roster_values_original) - offset):
-        for col in range(len(ws_roster_header)):
-            active_cells[row + offset][col].value = ''
-    
-    # flatten active_cells list
-    temp = []
-    for entry in active_cells:
-        temp+=entry
-    active_cells = temp
-    
-    # .update_cells batch call
-    ws_roster.update_cells(active_cells)
     
     # update last_roster_aggregation_time
     global last_roster_aggregation_time
@@ -515,7 +534,7 @@ def update_semester():
     ws_roster_header = ws_roster_values_original[0]
     ws_roster_values_updated = ws_roster_values_updated[1:]
     
-    
+    # Roster field index values
     this_semester_index = ws_roster_header.index('Attendance This Semester')
     last_semester_index = ws_roster_header.index('Attendance Last Semester')
     
@@ -526,35 +545,8 @@ def update_semester():
         # reset current semester sign in
         entry[this_semester_index] = '0'
     
-    # writeback roster    
-    ws_roster_values_updated = [ws_roster_header] + ws_roster_values_updated    
-    
-    printWarning('Now undergoing roster writeback, this may take a long time')
-    
-    # Select Cells covered by the original data
-    start_range = ws_roster.get_addr_int(1,1)
-    end_range = ws_roster.get_addr_int(len(ws_roster_values_updated), len(ws_roster_values_updated[0]))
-    active_cells = ws_roster.range(start_range + ':' + end_range)
-    
-    # Break active cells from flat list to list list
-    active_cells = [active_cells[x:x+len(ws_roster_header)] for x in range(0, len(active_cells), len(ws_roster_header))]
-    
-    # Update values from updated data
-    for row in range(len(ws_roster_values_updated)):
-        for col in range(len(ws_roster_header)):
-            active_cells[row][col].value = ws_roster_values_updated[row][col]
-        
-    # flatten active_cells list
-    temp = []
-    for entry in active_cells:
-        temp+=entry
-    active_cells = temp
-    
-    # .update_cells batch call
-    #ws_roster.update_cells(active_cells)
-    
-    printSuccess('Signins successfully proccesed.')
-    '''====================================='''
+    # Writeback data
+    writeback(ws_roster, ws_roster_values_updated)
     
     # update current semester
     global current_semester
@@ -563,13 +555,13 @@ def update_semester():
     global fall_semester_start_date
     
     today = datetime.datetime.now()
-    if spring_semester_start_date < today:#TODO and today < summer_semester_start_date:
+    if spring_semester_start_date < today and today < summer_semester_start_date:
         current_semester = 'spring ' + str(today.year)
     elif summer_semester_start_date < today and today < fall_semester_start_date:
         current_semester = 'summer ' + str(today.year)
     elif fall_semester_start_date < today:
         current_semester = 'fall ' + str(today.year)
-    printMessage('Current semester should be ' + current_semester)
+    printMessage('Current semester is now ' + current_semester)
     
     return
 
@@ -590,8 +582,12 @@ def main():
     
     # Take note of the starting time
     agent_start_time = time.asctime()
-    printInfo('Starting CALICO agent at ' + agent_start_time)
+    printInfo('Starting College-Organization-Manager agent at ' + agent_start_time)
     
+    # TODO Try to open the settings 
+    if not os.path.isfile(settings_filename):
+        First_Time_Setup(settings_filename)
+    Load_Settings_File(settings_filename)
     
     #Loop through tasks
     current_cycle = 0
@@ -624,12 +620,14 @@ def main():
         
         # if not season x and between season x dates
         if (
-                #(season != 'spring'   and spring_semester_start_date < today and today < summer_semester_start_date) or
-                (season != 'spring'   and spring_semester_start_date < today) or
+                (season != 'spring'   and spring_semester_start_date < today and today < summer_semester_start_date) or
+                #test case -> (season != 'spring'   and spring_semester_start_date < today) or
                 (season != 'summmer' and summer_semester_start_date < today and today < fall_semester_start_date) or
                 (season != 'fall' and fall_semester_start_date < today)
             ):
             update_semester()
+        else:
+            printSuccess('The Semester has not changed')
         
         
         printInfo('Going to sleep for ' + post_interval_sleep_time + ' minute(s)')
