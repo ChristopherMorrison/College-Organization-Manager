@@ -3,26 +3,35 @@ A semi-autonomous Python3 and Google Sheets based college organization managemen
 
 Features:
 
-* Automatic interpretation of data provided
 * Designed around University of Cincinnati student identification (but can be easily modified)
-* Automatic roster updates from member sign ins including additions of new members
+* Automatic roster updates from member sign ins, including automatic additions of new members
 * Ability to copy and paste in multiple rosters and condense them down to one large roster for carrying over large amounts of previously gathered data
 * Control panel located within the spreadsheet document for easy settings updates during runtime
 * Automatic processing of semester change
 * Easy to modify roster filters and settings
-* Detection of duplicate member entries
+* Detection and consolidation of duplicate member entries
 
 ## Requirements
-1. A Google account (free)
-2. A system with python3 installed and internet connectivity
+1. A Google account
+2. A system with python3 with pip/pip3 and internet connectivity
 
 ## Setup
-1. Create a Google Oauth2 client_key.json file from [here](https://console.cloud.google.com/apis/dashboard) by following the instructions [here](https://www.youtube.com/watch?v=vISRn5qFrkM)
-2. (Optional) Create a python virtual encironment to keep the dependencies seperated from other projects
-    
+1. Create a Google Oauth2 client_key.json file from [the Google Developers Console](https://console.cloud.google.com/apis/dashboard) by following the instructions [from this YouTube Video](https://www.youtube.com/watch?v=vISRn5qFrkM)
+
+2. (Optional) Create a [python virtual environment](https://docs.python.org/3/tutorial/venv.html) to keep the dependencies seperate from other projects
+
+For Linux or Mac:
+
     ```bash
     python3 -m venv Name-Of-Virtual-Environment-Folder
     source Name-Of-Virtual-Environment-Folder/bin/activate
+    ```
+
+For Windows:
+
+    ```bash
+    python3 -m venv Name-Of-Virtual-Environment-Folder
+    Name-Of-Virtual-Environment-Folder\Scripts\activate.bat
     ```
 
 3. Install package dependencies
@@ -37,29 +46,23 @@ Features:
     python3 Manager.py
     ```
     
-5. Watch the program fail as I have yet to release the segment that creates the Google sheet automatically
-6. Connect a google sign in sheet...
-
-## Configuration
-1. TBD
-
-## Usage and Capabilities
-1. TBD
+5. If there is no settings.cfg or there is an issue with the current settings.cfg file the program will go through a first time setup and you will need to enter your email and a few other things when prompted
+6. If the sheet cannot be connected to you will be prompted to either create a new one or remediate the issue by altering settings.cfg
 
 ## Documentation
-1. TBD, probably just screenshots and arrows with a sprinkle of graphs
+1. Screenshots to come
+2. Examples to come
 
 ## Future Development plans
-- Instructions on how to cleanly integrate a google forms based sign in sheet
-- Cleaner code, ways to rename things, and add-on implementation examples
-- Available update notification
-- Feedback from instances of use
 - Automatic generation of the google sheet that is required to use the program
+- Instructions on how to cleanly integrate a google forms based sign in sheet or do it automatically
 - Statistics of the internal roster
+- Cleaner code, ways to rename things, and add-on implementation examples
 - Models instead of ad-hoc lists of lists
-- Emailconnectivity to alert system administrator of major issues
+- Available updated version notification
+- Changes based on feedback from instances of use
+- Email connectivity to alert system administrator of major issues
 - Subroster generation to quickly determine subgroups of the organization's members
 
 ## Notes
-- I think I'm obligated in some way by the MIT to mention gspread which functions as the API for connecting to the spreadsheet
-- I think I'm also obligated to mention the other open source projects I used, they are all listed in the requirements.txt file but I'm not distributing them so I don't think I need to include their licenses here, you can look them up yourself
+- [Anton Burnashev's gspread](https://github.com/burnash/gspread) is the API used to communicate with the google sheet.
