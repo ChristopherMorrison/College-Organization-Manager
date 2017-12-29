@@ -22,17 +22,13 @@ Features:
 
 For Linux or Mac:
 
-    ```bash
     python3 -m venv Name-Of-Virtual-Environment-Folder
     source Name-Of-Virtual-Environment-Folder/bin/activate
-    ```
 
 For Windows:
 
-    ```bash
     python3 -m venv Name-Of-Virtual-Environment-Folder
     Name-Of-Virtual-Environment-Folder\Scripts\activate.bat
-    ```
 
 3. Install package dependencies
     
