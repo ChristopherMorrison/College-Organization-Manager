@@ -4,13 +4,18 @@ from oauth2client.service_account import ServiceAccountCredentials
 import time
 import datetime
 import os
+import httplib2
+
 
 # Very important variables
 settings_filename = 'settings.cfg'
-Google_Sheet_Name = 'Python Agent Master Sheet'
-Google_Sheet_key = ''
-Google_Sheet_URL = ''
-Administrator_Email = ''
+
+# TODO: Investigate replacing settings_file class with a dictionary
+class settings_file:
+    Google_Sheet_Name = None
+    Google_Sheet_key = None
+    Google_Sheet_URL = None
+    Administrator_Email = None
 
 # debug variables
 dbo = None
@@ -19,15 +24,16 @@ dbo = None
 scope = ["https://spreadsheets.google.com/feeds"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("client_secret.json",scope)
 
+# TODO: Scrape all up the global variables to be within a single object and populate them from settings.cfg
 # Global object variables
 client      = None
 spreadsheet = None
 
-# State variables
+# Global State variables
 client_authorized  = False
 spreadsheet_opened = False
 
-# Control Panel Variables
+# Global Control Panel Variables
 last_roster_aggregation_time     = '-'
 last_sign_in_processing_time     = '-'
 last_sign_in_processed_timestamp = None
@@ -43,7 +49,6 @@ current_semester = None
 fall_semester_start_date   = None
 spring_semester_start_date = None
 summer_semester_start_date = None
-
 
 # Colors and print functions via ANSI excape sequences
 # src: https://stackoverflow.com/questions/287871/print-in-terminal-with-colors
@@ -65,7 +70,7 @@ def printWarning(str_message):
 def printInfo(str_message):
     print('[' + bcolors.OKBLUE + 'INFO' + bcolors.ENDC + '] ' + str_message + '')
 def printMessage(str_message):
-    print('------>' + bcolors.HEADER + str_message + bcolors.ENDC)
+    print('----->' + bcolors.HEADER + str_message + bcolors.ENDC)
 
 
 # Helper functions
@@ -84,7 +89,7 @@ def start_client():
         client_authorized = True
         return client
     except:
-        printError('Could not authorize the client instance, try checking the Oauth2 credential json.\n')
+        printError('Could not authorize the client instance, try checking the Oauth2 credential json.')
         raise
 def open_spreadsheet(key_or_name):
     # Make sure the client has been started
@@ -177,19 +182,107 @@ def First_Time_Setup(settings_filename = 'settings.cfg'):
     # Make sure settings.cfg exists or (generate a new one and exit)
     if not os.path.isfile(settings_filename):
         Generate_Settings_File(settings_filename)
+    
     # Load in values from settings.cfg
+    Load_Settings_File(settings_filename)
+
     # make sure we have an admin email
-    # Create new spreadsheet
-    # Add worksheets and content
+    if settings_file.Administrator_Email == '':
+        printWarning('There is no Administrator_Email provided in the settings file "'+settings_filename+'". Please provide an email before continuing')
+        # TODO prompt user for email
+    
+    # Make sure the provided credentials work/exist
+    '''
+    try:
+        if os.path.isfile(credentials_file):
+            global client
+            client = start_client(///credentials///)
+        else:
+            printWarning('There are no Oauth2 credentials with the file name "' + credentials_file +'". Please refer to README to find information on how to generate these.')
+            raise #TODO add custom errors
+    except:
+        printWarning('The Oauth2 credentials are invalid. Please check your credentials file and refer to README.md.')
+        raise
+    '''
+    # Make sure the spreadsheet exists
+    '''
+    if settings.sheet(name/key/url) == '':
+        printWarning('No name, key, or url have been provided')
+        exit()
+    try: # cascading open by name, url, key
+        # TODO: open_worksheet_url
+        # TODO: open_worksheet_key
+    except:
+        # TODO: prompt user to either check the settings file or have the sheet generated
+    '''
+
+    # check worksheets or generate
+    '''
+    try:
+        open_worksheet control panel
+    except:
+        would you like to generate the control panel?
+
+    try:
+        open_worksheet roster
+    except:
+        would you like to generate a new roster?
+
+    try:
+        open_worksheet signins
+    except:
+        you may want to add a sign in sheet, this isn't auto yet
+    
+    # TODO: the subroster rules sheet
+    '''
+    
     # Add the Administrator_Email as a collaborator
+    '''
+    There is a gspread call for this
+    something like spreadsheet.add_collaborator(email)
+    '''
+    
     # Update settings.cfg
+    Write_Settings_File(settings_filename)
+    
     # run first time updates on worksheet
+    
     return
 def Generate_Settings_File(filename = 'settings.cfg'):
-    #TODO
+    settings = open(filename, 'w')
+    settings.write("# Only one of the following needs to be defined\n")
+    settings.write("# However, defining multiple creates redundancy\n")
+    settings.write("# Failing to set any of these will prompt a first time setup to be run\n")
+    settings.write("Google_Sheet_Name=\n")
+    settings.write("Google_Sheet_key=\n")
+    settings.write("Google_Sheet_URL=\n\n")
+    
+    settings.write("# Email account to invite to the sheet if it is generated by the program\n")
+    settings.write("# Google Email (gmail) accounts are recommended for this\n")
+    settings.write("# This value is required for first time setup to be run\n")
+    settings.write("Administrator_Email=\n")
+    settings.close()
+    printSuccess('A new settings file has been generated')
     return
 def Load_Settings_File(filename = 'settings.cfg'):
-    #TODO
+    loaded_settings = [line.split('=') for line in open(filename,'r').read().split('\n')]
+    for setting in loaded_settings:
+        if setting[0] == 'Google_Sheet_Name':
+            settings_file.Google_Sheet_Name = setting[1]
+        elif setting[0] == 'Google_Sheet_key':
+            settings_file.Google_Sheet_key = setting[1]
+        elif setting[0] == 'Google_Sheet_URL':
+            settings_file.Google_Sheet_URL = setting[1]
+        
+        elif setting[0] == 'Administrator_Email':
+            settings_file.Administrator_Email = setting[1]
+        
+    return
+def Write_Settings_File(filename = 'settings.cfg'):
+    # TODO:
+    # open the old settings file
+    # replace the values
+    # write out
     return
 
 # control panel functions
@@ -580,15 +673,34 @@ def main():
     global summer_semester_start_date
     global fall_semester_start_date
     
+    # TODO: Add ability to parse command line input
+    # --Client_Key to use different or multiple Oauth2 creds within the same dir 
+    # --Settings_File to use different settings files
+    # --Administrator_Email to provide email for first time setup so prompt isn't required
+    # --fastSetup to skip prompting options on first time setup
+    # --help -h -?
+    # --dryRun to make sure the current settings are valid and the document can be connected
+
+    # TODO: Check for updates and notify admin?
+    # is there a python module for checking git versions?
+    # if not should I try to parse 'git status' -> what if in a fork?
+    # what about git status upstream or git status /url/
+
     # Take note of the starting time
     agent_start_time = time.asctime()
     printInfo('Starting College-Organization-Manager agent at ' + agent_start_time)
     
-    # TODO Try to open the settings 
-    if not os.path.isfile(settings_filename):
+    # TODO Try to open the settings and worksheet
+    #      except: run first time setup or another smaller setup segment
+    '''
+    try:
+        Load_Settings_File(settings_filename)
+        # client = start_client()
+    except:
         First_Time_Setup(settings_filename)
-    Load_Settings_File(settings_filename)
-    
+    #exit()
+    '''
+
     #Loop through tasks
     current_cycle = 0
     while True:
@@ -613,6 +725,7 @@ def main():
         if current_cycle % int(generate_subroster_period) == 0:
             pass
             #TODO: generate_subrosters()
+            # generate subrosters based on the subroster definition worksheet
             
         # if today is a semester switch day and the semester has not been switched yet, switch it
         today = datetime.datetime.now()
@@ -621,7 +734,6 @@ def main():
         # if not season x and between season x dates
         if (
                 (season != 'spring'   and spring_semester_start_date < today and today < summer_semester_start_date) or
-                #test case -> (season != 'spring'   and spring_semester_start_date < today) or
                 (season != 'summmer' and summer_semester_start_date < today and today < fall_semester_start_date) or
                 (season != 'fall' and fall_semester_start_date < today)
             ):
@@ -637,13 +749,17 @@ def main():
     printInfo('End of program has been reached')
     return
     
-# This prevents prototyping errors because all other functions/objects have been entered into the interpreter memory
+# This prevents declaration order errors because all other functions/objects have been entered into the interpreter memory already
 if __name__ == "__main__":
     try:
         main()
+    except httplib2.ServerNotFoundError:
+        printError('Could not connect to the specified server, try checking your internet connection.')
+        raise
+    except SystemExit:
+        printWarning('Program is terminating.')
     except:
-        print('')
-        printWarning('Program is terminating')
+        printError('An handled error has occured.')
         raise
  
 
