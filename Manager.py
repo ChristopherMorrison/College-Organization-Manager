@@ -393,7 +393,7 @@ def sync_control_panel():
         active_cell = Control_Value(control_panel, 'Summer Semester Start (MM/DD)')
         summer_semester_start_date = datetime.datetime.strptime(active_cell.value, '%m/%d')
         summer_semester_start_date = summer_semester_start_date.replace(year = datetime.datetime.now().year)
-
+ 
 # Roster processing
 def process_signins():
     printInfo('Processing recent sign ins')
