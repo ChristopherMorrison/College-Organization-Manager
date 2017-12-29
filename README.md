@@ -21,15 +21,19 @@ Features:
 2. (Optional) Create a [python virtual environment](https://docs.python.org/3/tutorial/venv.html) to keep the dependencies seperate from other projects
 
     For Linux or Mac:
-
+    
+    ```bash
     python3 -m venv Name-Of-Virtual-Environment-Folder
     source Name-Of-Virtual-Environment-Folder/bin/activate
-
+    ```
+    
     For Windows:
-
+    
+    ```bash
     python3 -m venv Name-Of-Virtual-Environment-Folder
     Name-Of-Virtual-Environment-Folder\Scripts\activate.bat
-
+    ```bash
+    
 3. Install package dependencies
     
     ```bash
