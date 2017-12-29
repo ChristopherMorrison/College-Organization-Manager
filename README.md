@@ -1,5 +1,5 @@
 # College-Organization-Manager
-A semi-autonomous Python3 and Google Sheets based college organization management tool designed for easy deployment and use. Meant for groups of up to 500 due to current speed limitations of the API.
+A semi-autonomous Python3 and Google Sheets based college organization management tool designed for easy deployment and use.
 
 Features:
 
@@ -32,7 +32,7 @@ Features:
     ```bash
     python3 -m venv Name-Of-Virtual-Environment-Folder
     Name-Of-Virtual-Environment-Folder\Scripts\activate.bat
-    ```bash
+    ```
     
 3. Install package dependencies
     
