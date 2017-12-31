@@ -74,6 +74,7 @@ def printMessage(str_message):
 
 
 # Helper functions
+# TODO: Allow start_client to be given a different credential set
 def start_client():
     # Clear any previous client instance
     global client
@@ -196,7 +197,7 @@ def First_Time_Setup(settings_filename = 'settings.cfg'):
     try:
         if os.path.isfile(credentials_file):
             global client
-            client = start_client(///credentials///)
+            client = start_client()
         else:
             printWarning('There are no Oauth2 credentials with the file name "' + credentials_file +'". Please refer to README to find information on how to generate these.')
             raise #TODO add custom errors
