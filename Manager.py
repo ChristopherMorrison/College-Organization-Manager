@@ -7,7 +7,7 @@ import os
 import httplib2
 
 
-# Very important variables
+# Very important variables but not yet
 settings_filename = 'settings.cfg'
 
 # TODO: Investigate replacing settings_file class with a dictionary
@@ -146,8 +146,8 @@ def writeback(worksheet, values):
     
     # get cell range from worksheet
     all_values = worksheet.get_all_values()
-    start_range = worksheet.get_addr_int(1, 1)
-    end_range = worksheet.get_addr_int(len(all_values), len(all_values[0]))
+    start_range = worksheet.get_addr_int(1, 1) # start at A1
+    end_range = worksheet.get_addr_int(max([len(all_values), len(values)]), len(all_values[0])) # choose the maximum vertical length for the update, both horizontal lengths are the same
     active_cells = worksheet.range(start_range + ':' + end_range)
     
     # Add depth to active_cells to make it easier to traverse
@@ -640,6 +640,7 @@ def update_semester():
         entry[this_semester_index] = '0'
     
     # Writeback data
+    ws_roster_values_updated = [ws_roster_header] + ws_roster_values_updated
     writeback(ws_roster, ws_roster_values_updated)
     
     # update current semester
@@ -742,6 +743,8 @@ def main():
         else:
             printSuccess('The Semester has not changed')
         
+        # update the control panels with new values to prevent closing during sleep causing duplicate signins
+        sync_control_panel()
         
         printInfo('Going to sleep for ' + post_interval_sleep_time + ' minute(s)')
         time.sleep(60 * float(post_interval_sleep_time))
